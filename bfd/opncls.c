@@ -1,6 +1,6 @@
 /* opncls.c -- open and close a BFD.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012
+   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012, 2013
    Free Software Foundation, Inc.
 
    Written by Cygnus Support.
@@ -86,7 +86,7 @@ _bfd_new_bfd (void)
   nbfd->iostream = NULL;
   nbfd->where = 0;
   if (!bfd_hash_table_init_n (& nbfd->section_htab, bfd_section_hash_newfunc,
-			      sizeof (struct section_hash_entry), 251))
+			      sizeof (struct section_hash_entry), 13))
     {
       free (nbfd);
       return NULL;
@@ -186,7 +186,7 @@ DESCRIPTION
 	Return a pointer to the created BFD.  If @var{fd} is not -1,
 	then <<fdopen>> is used to open the file; otherwise, <<fopen>>
 	is used.  @var{mode} is passed directly to <<fopen>> or
-	<<fdopen>>. 
+	<<fdopen>>.
 
 	Calls <<bfd_find_target>>, so @var{target} is interpreted as by
 	that function.
@@ -222,7 +222,7 @@ bfd_fopen (const char *filename, const char *target, const char *mode, int fd)
       _bfd_delete_bfd (nbfd);
       return NULL;
     }
-  
+
 #ifdef HAVE_FDOPEN
   if (fd != -1)
     nbfd->iostream = fdopen (fd, mode);
@@ -241,7 +241,7 @@ bfd_fopen (const char *filename, const char *target, const char *mode, int fd)
 
   /* Figure out whether the user is opening the file for reading,
      writing, or both, by looking at the MODE argument.  */
-  if ((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') 
+  if ((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a')
       && mode[1] == '+')
     nbfd->direction = both_direction;
   else if (mode[0] == 'r')
@@ -508,7 +508,7 @@ opncls_bwrite (struct bfd *abfd ATTRIBUTE_UNUSED,
   return -1;
 }
 
-static bfd_boolean
+static int
 opncls_bclose (struct bfd *abfd)
 {
   struct opncls *vec = (struct opncls *) abfd->iostream;
@@ -518,7 +518,7 @@ opncls_bclose (struct bfd *abfd)
   if (vec->close != NULL)
     status = (vec->close) (abfd, vec->stream);
   abfd->iostream = NULL;
-  return status == 0;
+  return status;
 }
 
 static int
@@ -723,7 +723,7 @@ bfd_close (bfd *abfd)
   if (! BFD_SEND (abfd, _close_and_cleanup, (abfd)))
     return FALSE;
 
-  ret = abfd->iovec->bclose (abfd);
+  ret = abfd->iovec->bclose (abfd) == 0;
 
   if (ret)
     _maybe_make_executable (abfd);
@@ -1140,20 +1140,22 @@ bfd_calc_gnu_debuglink_crc32 (unsigned long crc,
 
 
 /*
-INTERNAL_FUNCTION
-	get_debug_link_info
+FUNCTION
+	bfd_get_debug_link_info
 
 SYNOPSIS
-	char *get_debug_link_info (bfd *abfd, unsigned long *crc32_out);
+	char *bfd_get_debug_link_info (bfd *abfd, unsigned long *crc32_out);
 
 DESCRIPTION
 	fetch the filename and CRC32 value for any separate debuginfo
 	associated with @var{abfd}. Return NULL if no such info found,
-	otherwise return filename and update @var{crc32_out}.
+	otherwise return filename and update @var{crc32_out}.  The
+	returned filename is allocated with @code{malloc}; freeing it
+	is the responsibility of the caller.
 */
 
-static char *
-get_debug_link_info (bfd *abfd, unsigned long *crc32_out)
+char *
+bfd_get_debug_link_info (bfd *abfd, unsigned long *crc32_out)
 {
   asection *sect;
   unsigned long crc32;
@@ -1261,7 +1263,7 @@ find_separate_debug_file (bfd *abfd, const char *debug_file_directory)
       return NULL;
     }
 
-  base = get_debug_link_info (abfd, & crc32);
+  base = bfd_get_debug_link_info (abfd, & crc32);
   if (base == NULL)
     return NULL;
 

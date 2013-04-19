@@ -290,8 +290,11 @@ struct _i386_insn
 	disp_encoding_32bit
       } disp_encoding;
 
-    /* Have HLE prefix.  */
-    unsigned int have_hle;
+    /* REP prefix.  */
+    const char *rep_prefix;
+
+    /* HLE prefix.  */
+    const char *hle_prefix;
 
     /* Error message.  */
     enum i386_error error;
@@ -421,14 +424,6 @@ enum x86_elf_abi
 
 static enum x86_elf_abi x86_elf_abi = I386_ABI;
 #endif
-
-/* The names used to print error messages.  */
-static const char *flag_code_names[] =
-  {
-    "32",
-    "16",
-    "64"
-  };
 
 /* 1 for intel syntax,
    0 if att syntax.  */
@@ -782,6 +777,8 @@ static const arch_entry cpu_arch[] =
     CPU_RDSEED_FLAGS, 0, 0 },
   { STRING_COMMA_LEN (".prfchw"), PROCESSOR_UNKNOWN,
     CPU_PRFCHW_FLAGS, 0, 0 },
+  { STRING_COMMA_LEN (".smap"), PROCESSOR_UNKNOWN,
+    CPU_SMAP_FLAGS, 0, 0 },
 };
 
 #ifdef I386COFF
@@ -2686,6 +2683,16 @@ reloc (unsigned int size,
 	    break;
 	  }
 
+#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
+      if (other == BFD_RELOC_SIZE32)
+	{
+	  if (size == 8)
+	    return BFD_RELOC_SIZE64;
+	  if (pcrel)
+	    as_bad (_("there are no pc-relative size relocations"));
+	}
+#endif
+
       /* Sign-checking 4-byte relocations in 16-/32-bit code is pointless.  */
       if (size == 4 && (flag_code != CODE_64BIT || disallow_64bit_reloc))
 	sign = -1;
@@ -2769,8 +2776,11 @@ tc_i386_fix_adjustable (fixS *fixP ATTRIBUTE_UNUSED)
       && fixP->fx_r_type == BFD_RELOC_32_PCREL)
     return 0;
 
-  /* adjust_reloc_syms doesn't know about the GOT.  */
-  if (fixP->fx_r_type == BFD_RELOC_386_GOTOFF
+  /* Adjust_reloc_syms doesn't know about the GOT.  Need to keep symbol
+     for size relocations.  */
+  if (fixP->fx_r_type == BFD_RELOC_SIZE32
+      || fixP->fx_r_type == BFD_RELOC_SIZE64
+      || fixP->fx_r_type == BFD_RELOC_386_GOTOFF
       || fixP->fx_r_type == BFD_RELOC_386_PLT32
       || fixP->fx_r_type == BFD_RELOC_386_GOT32
       || fixP->fx_r_type == BFD_RELOC_386_TLS_GD
@@ -3055,20 +3065,13 @@ check_hle (void)
     default:
       abort ();
     case HLEPrefixNone:
-      if (i.prefix[HLE_PREFIX] == XACQUIRE_PREFIX_OPCODE)
-	as_bad (_("invalid instruction `%s' after `xacquire'"),
-		i.tm.name);
-      else
-	as_bad (_("invalid instruction `%s' after `xrelease'"),
-		i.tm.name);
+      as_bad (_("invalid instruction `%s' after `%s'"),
+	      i.tm.name, i.hle_prefix);
       return 0;
     case HLEPrefixLock:
       if (i.prefix[LOCK_PREFIX])
 	return 1;
-      if (i.prefix[HLE_PREFIX] == XACQUIRE_PREFIX_OPCODE)
-	as_bad (_("missing `lock' with `xacquire'"));
-      else
-	as_bad (_("missing `lock' with `xrelease'"));
+      as_bad (_("missing `lock' with `%s'"), i.hle_prefix);
       return 0;
     case HLEPrefixAny:
       return 1;
@@ -3196,6 +3199,14 @@ md_assemble (char *line)
     if (!add_prefix (FWAIT_OPCODE))
       return;
 
+  /* Check if REP prefix is OK.  */
+  if (i.rep_prefix && !i.tm.opcode_modifier.repprefixok)
+    {
+      as_bad (_("invalid instruction `%s' after `%s'"),
+		i.tm.name, i.rep_prefix);
+      return;
+    }
+
   /* Check for lock without a lockable instruction.  Destination operand
      must be memory unless it is xchg (0x86).  */
   if (i.prefix[LOCK_PREFIX]
@@ -3209,7 +3220,7 @@ md_assemble (char *line)
     }
 
   /* Check if HLE prefix is OK.  */
-  if (i.have_hle && !check_hle ())
+  if (i.hle_prefix && !check_hle ())
     return;
 
   /* Check string instruction segment overrides.  */
@@ -3344,9 +3355,6 @@ parse_insn (char *line, char *mnemonic)
   const insn_template *t;
   char *dot_p = NULL;
 
-  /* Non-zero if we found a prefix only acceptable with string insns.  */
-  const char *expecting_string_instruction = NULL;
-
   while (1)
     {
       mnem_p = mnemonic;
@@ -3416,9 +3424,9 @@ parse_insn (char *line, char *mnemonic)
 	      return NULL;
 	    case PREFIX_REP:
 	      if (current_templates->start->cpu_flags.bitfield.cpuhle)
-		i.have_hle = 1;
+		i.hle_prefix = current_templates->start->name;
 	      else
-		expecting_string_instruction = current_templates->start->name;
+		i.rep_prefix = current_templates->start->name;
 	      break;
 	    default:
 	      break;
@@ -3565,27 +3573,6 @@ skip:
 	   && (flag_code != CODE_16BIT))
     {
       as_warn (_("use .code16 to ensure correct addressing mode"));
-    }
-
-  /* Check for rep/repne without a string (or other allowed) instruction.  */
-  if (expecting_string_instruction)
-    {
-      static templates override;
-
-      for (t = current_templates->start; t < current_templates->end; ++t)
-	if (t->opcode_modifier.repprefixok)
-	  break;
-      if (t >= current_templates->end)
-	{
-	  as_bad (_("expecting string instruction after `%s'"),
-		  expecting_string_instruction);
-	  return NULL;
-	}
-      for (override.start = t; t < current_templates->end; ++t)
-	if (!t->opcode_modifier.repprefixok)
-	  break;
-      override.end = t;
-      current_templates = &override;
     }
 
   return l;
@@ -6708,6 +6695,11 @@ lex_got (enum bfd_reloc_code_real *rel,
     const enum bfd_reloc_code_real rel[2];
     const i386_operand_type types64;
   } gotrel[] = {
+#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
+    { STRING_COMMA_LEN ("SIZE"),      { BFD_RELOC_SIZE32,
+					BFD_RELOC_SIZE32 },
+      OPERAND_TYPE_IMM32_64 },
+#endif
     { STRING_COMMA_LEN ("PLTOFF"),   { _dummy_first_bfd_reloc_code_real,
 				       BFD_RELOC_X86_64_PLTOFF64 },
       OPERAND_TYPE_IMM64 },
@@ -6783,8 +6775,6 @@ lex_got (enum bfd_reloc_code_real *rel,
 	      char *tmpbuf, *past_reloc;
 
 	      *rel = gotrel[j].rel[object_64bit];
-	      if (adjust)
-		*adjust = len;
 
 	      if (types)
 		{
@@ -6797,7 +6787,7 @@ lex_got (enum bfd_reloc_code_real *rel,
 		    *types = gotrel[j].types64;
 		}
 
-	      if (GOT_symbol == NULL)
+	      if (j != 0 && GOT_symbol == NULL)
 		GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
 
 	      /* The length of the first part of our input line.  */
@@ -6819,6 +6809,12 @@ lex_got (enum bfd_reloc_code_real *rel,
 		/* Replace the relocation token with ' ', so that
 		   errors like foo@GOTOFF1 will be detected.  */
 		tmpbuf[first++] = ' ';
+	      else
+		/* Increment length by 1 if the relocation token is
+		   removed.  */
+		len++;
+	      if (adjust)
+		*adjust = len;
 	      memcpy (tmpbuf + first, past_reloc, second);
 	      tmpbuf[first + second] = '\0';
 	      return tmpbuf;
@@ -6846,8 +6842,8 @@ lex_got (enum bfd_reloc_code_real *rel,
    input string, minus the `@SECREL32' into a malloc'd buffer for
    parsing by the calling routine.  Return this buffer, and if ADJUST
    is non-null set it to the length of the string we removed from the
-   input line.  Otherwise return NULL.  
-   
+   input line.  Otherwise return NULL.
+
    This function is copied from the ELF version above adjusted for PE targets.  */
 
 static char *
@@ -7416,14 +7412,55 @@ i386_finalize_displacement (segT exp_seg ATTRIBUTE_UNUSED, expressionS *exp,
 static int
 i386_index_check (const char *operand_string)
 {
-  int ok;
   const char *kind = "base/index";
-#if INFER_ADDR_PREFIX
-  int fudged = 0;
+  enum flag_code addr_mode;
 
- tryprefix:
+  if (i.prefix[ADDR_PREFIX])
+    addr_mode = flag_code == CODE_32BIT ? CODE_16BIT : CODE_32BIT;
+  else
+    {
+      addr_mode = flag_code;
+
+#if INFER_ADDR_PREFIX
+      if (i.mem_operands == 0)
+	{
+	  /* Infer address prefix from the first memory operand.  */
+	  const reg_entry *addr_reg = i.base_reg;
+
+	  if (addr_reg == NULL)
+	    addr_reg = i.index_reg;
+
+	  if (addr_reg)
+	    {
+	      if (addr_reg->reg_num == RegEip
+		  || addr_reg->reg_num == RegEiz
+		  || addr_reg->reg_type.bitfield.reg32)
+		addr_mode = CODE_32BIT;
+	      else if (flag_code != CODE_64BIT
+		       && addr_reg->reg_type.bitfield.reg16)
+		addr_mode = CODE_16BIT;
+
+	      if (addr_mode != flag_code)
+		{
+		  i.prefix[ADDR_PREFIX] = ADDR_PREFIX_OPCODE;
+		  i.prefixes += 1;
+		  /* Change the size of any displacement too.  At most one
+		     of Disp16 or Disp32 is set.
+		     FIXME.  There doesn't seem to be any real need for
+		     separate Disp16 and Disp32 flags.  The same goes for
+		     Imm16 and Imm32.  Removing them would probably clean
+		     up the code quite a lot.  */
+		  if (flag_code != CODE_64BIT
+		      && (i.types[this_operand].bitfield.disp16
+			  || i.types[this_operand].bitfield.disp32))
+		    i.types[this_operand]
+		      = operand_type_xor (i.types[this_operand], disp16_32);
+		}
+	    }
+	}
 #endif
-  ok = 1;
+    }
+
   if (current_templates->start->opcode_modifier.isstring
       && !current_templates->start->opcode_modifier.immext
       && (current_templates->end[-1].opcode_modifier.isstring
@@ -7431,7 +7468,14 @@ i386_index_check (const char *operand_string)
     {
       /* Memory operands of string insns are special in that they only allow
 	 a single register (rDI, rSI, or rBX) as their memory address.  */
-      unsigned int expected;
+      const reg_entry *expected_reg;
+      static const char *di_si[][2] =
+	{
+	  { "esi", "edi" },
+	  { "si", "di" },
+	  { "rsi", "rdi" }
+	};
+      static const char *bx[] = { "ebx", "bx", "rbx" };
 
       kind = "string address";
 
@@ -7444,77 +7488,70 @@ i386_index_check (const char *operand_string)
 		  && current_templates->end[-1].operand_types[1]
 		     .bitfield.baseindex))
 	    type = current_templates->end[-1].operand_types[1];
-	  expected = type.bitfield.esseg ? 7 /* rDI */ : 6 /* rSI */;
+	  expected_reg = hash_find (reg_hash,
+				    di_si[addr_mode][type.bitfield.esseg]);
+
 	}
       else
-	expected = 3 /* rBX */;
+	expected_reg = hash_find (reg_hash, bx[addr_mode]);
 
-      if (!i.base_reg || i.index_reg
+      if (i.base_reg != expected_reg
+	  || i.index_reg
 	  || operand_type_check (i.types[this_operand], disp))
-	ok = -1;
-      else if (!(flag_code == CODE_64BIT
-		 ? i.prefix[ADDR_PREFIX]
-		   ? i.base_reg->reg_type.bitfield.reg32
-		   : i.base_reg->reg_type.bitfield.reg64
-		 : (flag_code == CODE_16BIT) ^ !i.prefix[ADDR_PREFIX]
-		   ? i.base_reg->reg_type.bitfield.reg32
-		   : i.base_reg->reg_type.bitfield.reg16))
-	ok = 0;
-      else if (register_number (i.base_reg) != expected)
-	ok = -1;
-
-      if (ok < 0)
 	{
-	  unsigned int j;
+	  /* The second memory operand must have the same size as
+	     the first one.  */
+	  if (i.mem_operands
+	      && i.base_reg
+	      && !((addr_mode == CODE_64BIT
+		    && i.base_reg->reg_type.bitfield.reg64)
+		   || (addr_mode == CODE_32BIT
+		       ? i.base_reg->reg_type.bitfield.reg32
+		       : i.base_reg->reg_type.bitfield.reg16)))
+	    goto bad_address;
 
-	  for (j = 0; j < i386_regtab_size; ++j)
-	    if ((flag_code == CODE_64BIT
-		 ? i.prefix[ADDR_PREFIX]
-		   ? i386_regtab[j].reg_type.bitfield.reg32
-		   : i386_regtab[j].reg_type.bitfield.reg64
-		 : (flag_code == CODE_16BIT) ^ !i.prefix[ADDR_PREFIX]
-		   ? i386_regtab[j].reg_type.bitfield.reg32
-		   : i386_regtab[j].reg_type.bitfield.reg16)
-		&& register_number(i386_regtab + j) == expected)
-	      break;
-	  gas_assert (j < i386_regtab_size);
 	  as_warn (_("`%s' is not valid here (expected `%c%s%s%c')"),
 		   operand_string,
 		   intel_syntax ? '[' : '(',
 		   register_prefix,
-		   i386_regtab[j].reg_name,
+		   expected_reg->reg_name,
 		   intel_syntax ? ']' : ')');
-	  ok = 1;
+	  return 1;
 	}
-    }
-  else if (flag_code == CODE_64BIT)
-    {
-      if ((i.base_reg
-	   && ((i.prefix[ADDR_PREFIX] == 0
-		&& !i.base_reg->reg_type.bitfield.reg64)
-	       || (i.prefix[ADDR_PREFIX]
-		   && !i.base_reg->reg_type.bitfield.reg32))
-	   && (i.index_reg
-	       || i.base_reg->reg_num !=
-		  (i.prefix[ADDR_PREFIX] == 0 ? RegRip : RegEip)))
-	  || (i.index_reg
-	      && !(i.index_reg->reg_type.bitfield.regxmm
-		   || i.index_reg->reg_type.bitfield.regymm)
-	      && (!i.index_reg->reg_type.bitfield.baseindex
-		  || (i.prefix[ADDR_PREFIX] == 0
-		      && i.index_reg->reg_num != RegRiz
-		      && !i.index_reg->reg_type.bitfield.reg64
-		      )
-		  || (i.prefix[ADDR_PREFIX]
-		      && i.index_reg->reg_num != RegEiz
-		      && !i.index_reg->reg_type.bitfield.reg32))))
-	ok = 0;
+      else
+	return 1;
+
+bad_address:
+      as_bad (_("`%s' is not a valid %s expression"),
+	      operand_string, kind);
+      return 0;
     }
   else
     {
-      if ((flag_code == CODE_16BIT) ^ (i.prefix[ADDR_PREFIX] != 0))
+      if (addr_mode != CODE_16BIT)
 	{
-	  /* 16bit checks.  */
+	  /* 32-bit/64-bit checks.  */
+	  if ((i.base_reg
+	       && (addr_mode == CODE_64BIT
+		   ? !i.base_reg->reg_type.bitfield.reg64
+		   : !i.base_reg->reg_type.bitfield.reg32)
+	       && (i.index_reg
+		   || (i.base_reg->reg_num
+		       != (addr_mode == CODE_64BIT ? RegRip : RegEip))))
+	      || (i.index_reg
+		  && !i.index_reg->reg_type.bitfield.regxmm
+		  && !i.index_reg->reg_type.bitfield.regymm
+		  && ((addr_mode == CODE_64BIT
+		       ? !(i.index_reg->reg_type.bitfield.reg64
+			   || i.index_reg->reg_num == RegRiz)
+		       : !(i.index_reg->reg_type.bitfield.reg32
+			   || i.index_reg->reg_num == RegEiz))
+		      || !i.index_reg->reg_type.bitfield.baseindex)))
+	    goto bad_address;
+	}
+      else
+	{
+	  /* 16-bit checks.  */
 	  if ((i.base_reg
 	       && (!i.base_reg->reg_type.bitfield.reg16
 		   || !i.base_reg->reg_type.bitfield.baseindex))
@@ -7525,58 +7562,10 @@ i386_index_check (const char *operand_string)
 			   && i.base_reg->reg_num < 6
 			   && i.index_reg->reg_num >= 6
 			   && i.log2_scale_factor == 0))))
-	    ok = 0;
-	}
-      else
-	{
-	  /* 32bit checks.  */
-	  if ((i.base_reg
-	       && !i.base_reg->reg_type.bitfield.reg32)
-	      || (i.index_reg
-		  && !i.index_reg->reg_type.bitfield.regxmm
-		  && !i.index_reg->reg_type.bitfield.regymm
-		  && ((!i.index_reg->reg_type.bitfield.reg32
-		       && i.index_reg->reg_num != RegEiz)
-		      || !i.index_reg->reg_type.bitfield.baseindex)))
-	    ok = 0;
+	    goto bad_address;
 	}
     }
-  if (!ok)
-    {
-#if INFER_ADDR_PREFIX
-      if (!i.mem_operands && !i.prefix[ADDR_PREFIX])
-	{
-	  i.prefix[ADDR_PREFIX] = ADDR_PREFIX_OPCODE;
-	  i.prefixes += 1;
-	  /* Change the size of any displacement too.  At most one of
-	     Disp16 or Disp32 is set.
-	     FIXME.  There doesn't seem to be any real need for separate
-	     Disp16 and Disp32 flags.  The same goes for Imm16 and Imm32.
-	     Removing them would probably clean up the code quite a lot.  */
-	  if (flag_code != CODE_64BIT
-	      && (i.types[this_operand].bitfield.disp16
-		  || i.types[this_operand].bitfield.disp32))
-	    i.types[this_operand]
-	      = operand_type_xor (i.types[this_operand], disp16_32);
-	  fudged = 1;
-	  goto tryprefix;
-	}
-      if (fudged)
-	as_bad (_("`%s' is not a valid %s expression"),
-		operand_string,
-		kind);
-      else
-#endif
-	as_bad (_("`%s' is not a valid %s-bit %s expression"),
-		operand_string,
-		flag_code_names[i.prefix[ADDR_PREFIX]
-					 ? flag_code == CODE_32BIT
-					   ? CODE_16BIT
-					   : CODE_32BIT
-					 : flag_code],
-		kind);
-    }
-  return ok;
+  return 1;
 }
 
 /* Parse OPERAND_STRING into the i386_insn structure I.  Returns zero
@@ -9227,6 +9216,26 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 
   switch (fixp->fx_r_type)
     {
+#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
+    case BFD_RELOC_SIZE32:
+    case BFD_RELOC_SIZE64:
+      if (S_IS_DEFINED (fixp->fx_addsy)
+	  && !S_IS_EXTERNAL (fixp->fx_addsy))
+	{
+	  /* Resolve size relocation against local symbol to size of
+	     the symbol plus addend.  */
+	  valueT value = S_GET_SIZE (fixp->fx_addsy) + fixp->fx_offset;
+	  if (fixp->fx_r_type == BFD_RELOC_SIZE32
+	      && !fits_in_unsigned_long (value))
+	    as_bad_where (fixp->fx_file, fixp->fx_line,
+			  _("symbol size computation overflow"));
+	  fixp->fx_addsy = NULL;
+	  fixp->fx_subsy = NULL;
+	  md_apply_fix (fixp, (valueT *) &value, NULL);
+	  return NULL;
+	}
+#endif
+
     case BFD_RELOC_X86_64_PLT32:
     case BFD_RELOC_X86_64_GOT32:
     case BFD_RELOC_X86_64_GOTPCREL:

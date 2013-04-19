@@ -99,6 +99,7 @@ responsibility among the other maintainers.
   MACH-O           Tristan Gingold <gingold@adacore.com>
   MAXQ		   Inderpreet Singh <inderpreetb@noida.hcltech.com>
   MEP		   Dave Brolley <brolley@redhat.com>
+  METAG            Markos Chandras <markos.chandras@imgtec.com>
   MICROBLAZE	   Michael Eager <eager@eagercon.com>
   MIPS		   Eric Christopher <echristo@apple.com>
   MMIX		   Hans-Peter Nilsson <hp@bitrange.com>
@@ -107,6 +108,8 @@ responsibility among the other maintainers.
   Moxie		   Anthony Green <green@moxielogic.com>
   MSP430	   Dmitry Diky <diwil@spec.ru>
   NetBSD support   Matt Thomas <matt@netbsd.org>
+  Nios II	   Sandra Loosemore <sandra@codesourcery.com>
+  Nios II	   Andrew Jenner <andrew@codesourcery.com>
   PPC		   Geoff Keating <geoffk@geoffk.org>
   PPC		   Alan Modra <amodra@gmail.com>
   PPC vector ext   Aldy Hernandez <aldyh@redhat.com>

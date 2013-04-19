@@ -1072,7 +1072,7 @@ elf64_ia64_hash_table_free (struct bfd_link_hash_table *hash)
     objalloc_free ((struct objalloc *) ia64_info->loc_hash_memory);
   elf_link_hash_traverse (&ia64_info->root,
 			  elf64_ia64_global_dyn_info_free, NULL);
-  _bfd_generic_link_hash_table_free (hash);
+  _bfd_elf_link_hash_table_free (hash);
 }
 
 /* Traverse both local and global hash tables.  */
@@ -4310,7 +4310,9 @@ elf64_ia64_print_private_bfd_data (bfd *abfd, void * ptr)
 }
 
 static enum elf_reloc_type_class
-elf64_ia64_reloc_type_class (const Elf_Internal_Rela *rela)
+elf64_ia64_reloc_type_class (const struct bfd_link_info *info ATTRIBUTE_UNUSED,
+			     const asection *rel_sec ATTRIBUTE_UNUSED,
+			     const Elf_Internal_Rela *rela)
 {
   switch ((int) ELF64_R_TYPE (rela->r_info))
     {
@@ -5046,7 +5048,8 @@ error_free_dyn:
 	h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
       *sym_hash = h;
-      h->unique_global = (flags & BSF_GNU_UNIQUE) != 0;
+      if (definition)
+	h->unique_global = (flags & BSF_GNU_UNIQUE) != 0;
 
       /* Set the alignment of a common symbol.  */
       if ((common || bfd_is_com_section (sec))

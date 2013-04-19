@@ -1,7 +1,5 @@
 /* tc-arm.c -- Assemble for the ARM
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013
-   Free Software Foundation, Inc.
+   Copyright 1994-2013 Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 	Modified by David Taylor (dtaylor@armltd.co.uk)
 	Cirrus coprocessor mods by Aldy Hernandez (aldyh@redhat.com)
@@ -240,6 +238,8 @@ static const arm_feature_set fpu_neon_ext_armv8 =
   ARM_FEATURE (0, FPU_NEON_EXT_ARMV8);
 static const arm_feature_set fpu_crypto_ext_armv8 =
   ARM_FEATURE (0, FPU_CRYPTO_EXT_ARMV8);
+static const arm_feature_set crc_ext_armv8 =
+  ARM_FEATURE (0, CRC_EXT_ARMV8);
 
 static int mfloat_abi_opt = -1;
 /* Record user cpu selection for object attributes.  */
@@ -750,6 +750,7 @@ struct asm_opcode
 #define BAD_PC_WRITEBACK \
 	_("cannot use writeback with PC-relative addressing")
 #define BAD_RANGE     _("branch out of range")
+#define UNPRED_REG(R)	_("using " R " results in unpredictable behaviour")
 
 static struct hash_control * arm_ops_hsh;
 static struct hash_control * arm_cond_hsh;
@@ -887,7 +888,7 @@ skip_past_char (char ** str, char c)
 {
   /* PR gas/14987: Allow for whitespace before the expected character.  */
   skip_whitespace (*str);
-  
+
   if (**str == c)
     {
       (*str)++;
@@ -7827,7 +7828,7 @@ do_co_reg (void)
 	    && inst.operands[4].reg == r->crm
 	    && inst.operands[5].imm == r->opc2)
 	  {
-	    if (!check_obsolete (&r->obsoleted, r->obs_msg)
+	    if (! ARM_CPU_IS_ANY (cpu_variant)
 	        && warn_on_deprecated
 		&& ARM_CPU_HAS_FEATURE (cpu_variant, r->deprecated))
 	      as_warn ("%s", r->dep_msg);
@@ -9470,8 +9471,8 @@ encode_thumb32_addr_mode (int i, bfd_boolean is_t, bfd_boolean is_d)
       constraint (is_pc && inst.operands[i].writeback, BAD_PC_WRITEBACK);
       constraint (is_t && inst.operands[i].writeback,
 		  _("cannot use writeback with this instruction"));
-      constraint (is_pc && ((inst.instruction & THUMB2_LOAD_BIT) == 0)
-		  && !inst.reloc.pc_rel, BAD_PC_ADDRESSING);
+      constraint (is_pc && ((inst.instruction & THUMB2_LOAD_BIT) == 0),
+		  BAD_PC_ADDRESSING);
 
       if (is_d)
 	{
@@ -15496,6 +15497,11 @@ do_neon_mov (void)
       do_vfp_nsyn_opcode ("fmsrr");
       break;
 
+    case NS_NULL:
+      /* neon_select_shape has determined that the instruction
+	 shape is wrong and has already set the error message.  */
+      break;
+
     default:
       abort ();
     }
@@ -15684,7 +15690,7 @@ do_neon_ldr_str (void)
      And is UNPREDICTABLE in thumb mode.  */
   if (!is_ldr
       && inst.operands[1].reg == REG_PC
-      && ARM_CPU_HAS_FEATURE (selected_cpu, arm_ext_v7))
+      && (ARM_CPU_HAS_FEATURE (selected_cpu, arm_ext_v7) || thumb_mode))
     {
       if (!thumb_mode && warn_on_deprecated)
 	as_warn (_("Use of PC here is deprecated"));
@@ -16311,6 +16317,63 @@ do_sha256su0 (void)
 {
   do_crypto_2op_1 (N_32, 1);
 }
+
+static void
+do_crc32_1 (unsigned int poly, unsigned int sz)
+{
+  unsigned int Rd = inst.operands[0].reg;
+  unsigned int Rn = inst.operands[1].reg;
+  unsigned int Rm = inst.operands[2].reg;
+
+  set_it_insn_type (OUTSIDE_IT_INSN);
+  inst.instruction |= LOW4 (Rd) << (thumb_mode ? 8 : 12);
+  inst.instruction |= LOW4 (Rn) << 16;
+  inst.instruction |= LOW4 (Rm);
+  inst.instruction |= sz << (thumb_mode ? 4 : 21);
+  inst.instruction |= poly << (thumb_mode ? 20 : 9);
+
+  if (Rd == REG_PC || Rn == REG_PC || Rm == REG_PC)
+    as_warn (UNPRED_REG ("r15"));
+  if (thumb_mode && (Rd == REG_SP || Rn == REG_SP || Rm == REG_SP))
+    as_warn (UNPRED_REG ("r13"));
+}
+
+static void
+do_crc32b (void)
+{
+  do_crc32_1 (0, 0);
+}
+
+static void
+do_crc32h (void)
+{
+  do_crc32_1 (0, 1);
+}
+
+static void
+do_crc32w (void)
+{
+  do_crc32_1 (0, 2);
+}
+
+static void
+do_crc32cb (void)
+{
+  do_crc32_1 (1, 0);
+}
+
+static void
+do_crc32ch (void)
+{
+  do_crc32_1 (1, 1);
+}
+
+static void
+do_crc32cw (void)
+{
+  do_crc32_1 (1, 2);
+}
+
 
 /* Overall per-instruction processing.	*/
 
@@ -17796,6 +17859,13 @@ static struct asm_barrier_opt barrier_opt_names[] =
   { mnem, OPS##nops ops, OT_unconditional, 0x##op, 0x##top, ARM_VARIANT, \
     THUMB_VARIANT, do_##ae, do_##te }
 
+/* Same as TUE but the encoding function for ARM and Thumb modes is the same.
+   Used by mnemonics that have very minimal differences in the encoding for
+   ARM and Thumb variants and can be handled in a common function.  */
+#define TUEc(mnem, op, top, nops, ops, en) \
+  { mnem, OPS##nops ops, OT_unconditional, 0x##op, 0x##top, ARM_VARIANT, \
+    THUMB_VARIANT, do_##en, do_##en }
+
 /* Mnemonic that cannot be conditionalized, and bears 0xF in its ARM
    condition code field.  */
 #define TUF(mnem, op, top, nops, ops, ae, te)				\
@@ -18532,6 +18602,17 @@ static const struct asm_opcode insns[] =
   nUF(sha1h, _sha1h, 2, (RNQ, RNQ), sha1h),
   nUF(sha1su1, _sha2op, 2, (RNQ, RNQ), sha1su1),
   nUF(sha256su0, _sha2op, 2, (RNQ, RNQ), sha256su0),
+
+#undef  ARM_VARIANT
+#define ARM_VARIANT & crc_ext_armv8
+#undef  THUMB_VARIANT
+#define THUMB_VARIANT & crc_ext_armv8
+  TUEc("crc32b", 1000040, fac0f080, 3, (RR, oRR, RR), crc32b),
+  TUEc("crc32h", 1200040, fac0f090, 3, (RR, oRR, RR), crc32h),
+  TUEc("crc32w", 1400040, fac0f0a0, 3, (RR, oRR, RR), crc32w),
+  TUEc("crc32cb",1000240, fad0f080, 3, (RR, oRR, RR), crc32cb),
+  TUEc("crc32ch",1200240, fad0f090, 3, (RR, oRR, RR), crc32ch),
+  TUEc("crc32cw",1400240, fad0f0a0, 3, (RR, oRR, RR), crc32cw),
 
 #undef  ARM_VARIANT
 #define ARM_VARIANT  & fpu_fpa_ext_v1  /* Core FPA instruction set (V1).  */
@@ -21549,8 +21630,9 @@ md_apply_fix (fixS *	fixP,
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("invalid literal constant: pool needs to be closer"));
 	  else
-	    as_bad (_("bad immediate value for 8-bit offset (%ld)"),
-		    (long) value);
+	    as_bad_where (fixP->fx_file, fixP->fx_line,
+			  _("bad immediate value for 8-bit offset (%ld)"),
+			  (long) value);
 	  break;
 	}
 
@@ -23884,11 +23966,18 @@ static const struct arm_cpu_option_table arm_cpus[] =
   ARM_CPU_OPT ("cortex-a15",	ARM_ARCH_V7A_IDIV_MP_SEC_VIRT,
 						 FPU_ARCH_NEON_VFP_V4,
 								  "Cortex-A15"),
+  ARM_CPU_OPT ("cortex-a53",    ARM_ARCH_V8A,    FPU_ARCH_CRYPTO_NEON_VFP_ARMV8,
+	                                                          "Cortex-A53"),
+  ARM_CPU_OPT ("cortex-a57",    ARM_ARCH_V8A,    FPU_ARCH_CRYPTO_NEON_VFP_ARMV8,
+	                                                          "Cortex-A57"),
   ARM_CPU_OPT ("cortex-r4",	ARM_ARCH_V7R,	 FPU_NONE,	  "Cortex-R4"),
   ARM_CPU_OPT ("cortex-r4f",	ARM_ARCH_V7R,	 FPU_ARCH_VFP_V3D16,
 								  "Cortex-R4F"),
   ARM_CPU_OPT ("cortex-r5",	ARM_ARCH_V7R_IDIV,
 						 FPU_NONE,	  "Cortex-R5"),
+  ARM_CPU_OPT ("cortex-r7",	ARM_ARCH_V7R_IDIV,
+						 FPU_ARCH_VFP_V3D16,
+								  "Cortex-R7"),
   ARM_CPU_OPT ("cortex-m4",	ARM_ARCH_V7EM,	 FPU_NONE,	  "Cortex-M4"),
   ARM_CPU_OPT ("cortex-m3",	ARM_ARCH_V7M,	 FPU_NONE,	  "Cortex-M3"),
   ARM_CPU_OPT ("cortex-m1",	ARM_ARCH_V6SM,	 FPU_NONE,	  "Cortex-M1"),
@@ -23902,8 +23991,11 @@ static const struct arm_cpu_option_table arm_cpus[] =
   ARM_CPU_OPT ("i80200",	ARM_ARCH_XSCALE, FPU_ARCH_VFP_V2, NULL),
   /* Maverick */
   ARM_CPU_OPT ("ep9312",	ARM_FEATURE (ARM_AEXT_V4T, ARM_CEXT_MAVERICK),
-						 FPU_ARCH_MAVERICK,
-								  "ARM920T"),
+						 FPU_ARCH_MAVERICK, "ARM920T"),
+  /* Marvell processors.  */
+  ARM_CPU_OPT ("marvell-pj4",   ARM_FEATURE (ARM_AEXT_V7A | ARM_EXT_MP | ARM_EXT_SEC, 0),
+	       					FPU_ARCH_VFP_V3D16, NULL),
+
   { NULL, 0, ARM_ARCH_NONE, ARM_ARCH_NONE, NULL }
 };
 #undef ARM_CPU_OPT
@@ -23981,6 +24073,7 @@ struct arm_option_extension_value_table
 #define ARM_EXT_OPT(N, V, AA) { N, sizeof (N) - 1, V, AA }
 static const struct arm_option_extension_value_table arm_extensions[] =
 {
+  ARM_EXT_OPT ("crc",  ARCH_CRC_ARMV8, ARM_FEATURE (ARM_EXT_V8, 0)),
   ARM_EXT_OPT ("crypto", FPU_ARCH_CRYPTO_NEON_VFP_ARMV8,
 				   ARM_FEATURE (ARM_EXT_V8, 0)),
   ARM_EXT_OPT ("fp",     FPU_ARCH_VFP_ARMV8,

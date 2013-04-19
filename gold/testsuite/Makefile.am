@@ -53,6 +53,26 @@ TEST_AR = $(top_builddir)/../binutils/ar
 TEST_NM = $(top_builddir)/../binutils/nm-new
 TEST_AS = $(top_builddir)/../gas/as-new
 
+# Make the default target available to scripts as $DEFAULT_TARGET.
+if DEFAULT_TARGET_ARM
+export DEFAULT_TARGET = arm
+endif
+if DEFAULT_TARGET_I386
+export DEFAULT_TARGET = i386
+endif
+if DEFAULT_TARGET_POWERPC
+export DEFAULT_TARGET = powerpc
+endif
+if DEFAULT_TARGET_SPARC
+export DEFAULT_TARGET = sparc
+endif
+if DEFAULT_TARGET_X86_64
+export DEFAULT_TARGET = x86_64
+endif
+if DEFAULT_TARGET_TILEGX
+export DEFAULT_TARGET = tilegx
+endif
+
 if PLUGINS
 LIBDL = -ldl
 endif
@@ -148,7 +168,7 @@ flagstest_ndebug.o: constructor_test.cc
 
 check_SCRIPTS += incremental_test.sh
 check_DATA += incremental_test.stdout
-MOSTLYCLEANFILES += incremental_test
+MOSTLYCLEANFILES += incremental_test incremental_test.cmdline
 incremental_test_1.o: incremental_test_1.c
 	$(COMPILE) -O0 -c -ffunction-sections -g -o $@ $<
 incremental_test_2.o: incremental_test_2.c
@@ -201,14 +221,12 @@ pr14265.stdout: pr14265
 	$(TEST_NM) --format=bsd --numeric-sort $< > $@
 
 check_SCRIPTS += icf_test.sh
-check_DATA += icf_test.stdout
-MOSTLYCLEANFILES += icf_test
+check_DATA += icf_test.map
+MOSTLYCLEANFILES += icf_test icf_test.map
 icf_test.o: icf_test.cc 
 	$(CXXCOMPILE) -O0 -c -ffunction-sections -g -o $@ $<
-icf_test: icf_test.o gcctestdir/ld
-	$(CXXLINK) -Bgcctestdir/ -Wl,--icf=all icf_test.o
-icf_test.stdout: icf_test
-	$(TEST_NM) -C icf_test > icf_test.stdout
+icf_test icf_test.map: icf_test.o gcctestdir/ld
+	$(CXXLINK) -o icf_test -Bgcctestdir/ -Wl,--icf=all,-Map,icf_test.map icf_test.o
 
 check_SCRIPTS += icf_keep_unique_test.sh
 check_DATA += icf_keep_unique_test.stdout
@@ -218,31 +236,31 @@ icf_keep_unique_test.o: icf_keep_unique_test.cc
 icf_keep_unique_test: icf_keep_unique_test.o gcctestdir/ld
 	$(CXXLINK) -Bgcctestdir/ -Wl,--icf=all -Wl,--keep-unique,_Z11unique_funcv icf_keep_unique_test.o
 icf_keep_unique_test.stdout: icf_keep_unique_test
-	$(TEST_NM) -C icf_keep_unique_test > icf_keep_unique_test.stdout
+	$(TEST_NM) -C $< > $@
 
 check_SCRIPTS += icf_safe_test.sh
-check_DATA += icf_safe_test_1.stdout icf_safe_test_2.stdout
-MOSTLYCLEANFILES += icf_safe_test
+check_DATA += icf_safe_test_1.stdout icf_safe_test_2.stdout icf_safe_test.map
+MOSTLYCLEANFILES += icf_safe_test icf_safe_test.map
 icf_safe_test.o: icf_safe_test.cc
 	$(CXXCOMPILE) -O0 -c -ffunction-sections -g -o $@ $<
-icf_safe_test: icf_safe_test.o gcctestdir/ld
-	$(CXXLINK) -Bgcctestdir/ -Wl,--icf=safe icf_safe_test.o
+icf_safe_test icf_safe_test.map: icf_safe_test.o gcctestdir/ld
+	$(CXXLINK) -o icf_safe_test -Bgcctestdir/ -Wl,--icf=safe,-Map,icf_safe_test.map icf_safe_test.o
 icf_safe_test_1.stdout: icf_safe_test
-	$(TEST_NM) icf_safe_test > icf_safe_test_1.stdout
+	$(TEST_NM) $< > $@
 icf_safe_test_2.stdout: icf_safe_test
-	$(TEST_READELF) -h icf_safe_test > icf_safe_test_2.stdout
+	$(TEST_READELF) -h $< > $@
 
 check_SCRIPTS += icf_safe_so_test.sh
-check_DATA += icf_safe_so_test_1.stdout icf_safe_so_test_2.stdout
-MOSTLYCLEANFILES += icf_safe_so_test
+check_DATA += icf_safe_so_test_1.stdout icf_safe_so_test_2.stdout icf_safe_so_test.map
+MOSTLYCLEANFILES += icf_safe_so_test icf_safe_so_test.map
 icf_safe_so_test.o: icf_safe_so_test.cc
 	$(CXXCOMPILE) -O0 -c -ffunction-sections -fPIC -g -o $@ $<
-icf_safe_so_test: icf_safe_so_test.o gcctestdir/ld
-	$(CXXLINK) -Bgcctestdir/ -Wl,--icf=safe icf_safe_so_test.o -fPIC -shared
+icf_safe_so_test icf_safe_so_test.map: icf_safe_so_test.o gcctestdir/ld
+	$(CXXLINK) -o icf_safe_so_test -Bgcctestdir/ -Wl,--icf=safe,-Map,icf_safe_so_test.map icf_safe_so_test.o -fPIC -shared
 icf_safe_so_test_1.stdout: icf_safe_so_test
-	$(TEST_NM) icf_safe_so_test > icf_safe_so_test_1.stdout
+	$(TEST_NM) $< > $@
 icf_safe_so_test_2.stdout: icf_safe_so_test
-	$(TEST_READELF) -h icf_safe_so_test > icf_safe_so_test_2.stdout
+	$(TEST_READELF) -h $< > $@
 
 check_SCRIPTS += final_layout.sh
 check_DATA += final_layout.stdout
@@ -252,24 +270,28 @@ final_layout.o: final_layout.cc
 final_layout_sequence.txt:
 	(echo "*_Z3barv*" && echo ".text._Z3bazv" && echo "*_Z3foov*" && echo "*global_varb*" && echo "*global_vara*" && echo "*global_varc*") > final_layout_sequence.txt
 final_layout_script.lds:
-	(echo "SECTIONS { .text : { *(.text*) } .bss : { *(.bss*) } }") > final_layout_script.lds
+	(echo "SECTIONS { .text : { *(.text*) } .got : { *(.got .toc) } .sbss : { *(.sbss*) } .bss : { *(.bss*) } }") > final_layout_script.lds
 final_layout: final_layout.o final_layout_sequence.txt final_layout_script.lds gcctestdir/ld
 	$(CXXLINK) -Bgcctestdir/ -Wl,--section-ordering-file,final_layout_sequence.txt -Wl,-T,final_layout_script.lds final_layout.o
 final_layout.stdout: final_layout
 	$(TEST_NM) -n --synthetic final_layout > final_layout.stdout
 
 check_SCRIPTS += text_section_grouping.sh
-check_DATA += text_section_grouping.stdout
-MOSTLYCLEANFILES += text_section_grouping
+check_DATA += text_section_grouping.stdout text_section_no_grouping.stdout
+MOSTLYCLEANFILES += text_section_grouping text_section_no_grouping
 text_section_grouping.o: text_section_grouping.cc
 	$(CXXCOMPILE) -O0 -c -ffunction-sections -g -o $@ $<
 text_section_grouping: text_section_grouping.o gcctestdir/ld
 	$(CXXLINK)  -Bgcctestdir/ text_section_grouping.o
+text_section_no_grouping: text_section_grouping.o gcctestdir/ld
+	$(CXXLINK)  -Bgcctestdir/ -Wl,--no-text-reorder text_section_grouping.o
 text_section_grouping.stdout: text_section_grouping
-	$(TEST_NM) -n --synthetic text_section_grouping > text_section_grouping.stdout 
+	$(TEST_NM) -n --synthetic text_section_grouping > text_section_grouping.stdout
+text_section_no_grouping.stdout: text_section_no_grouping
+	$(TEST_NM) -n --synthetic text_section_no_grouping > text_section_no_grouping.stdout 
 
 check_PROGRAMS += icf_virtual_function_folding_test
-MOSTLYCLEANFILES += icf_virtual_function_folding_test
+MOSTLYCLEANFILES += icf_virtual_function_folding_test icf_virtual_function_folding_test.map
 icf_virtual_function_folding_test.o: icf_virtual_function_folding_test.cc
 	$(CXXCOMPILE) -O0 -c -ffunction-sections -fPIE -g -o $@ $<
 icf_virtual_function_folding_test: icf_virtual_function_folding_test.o gcctestdir/ld
@@ -1072,6 +1094,7 @@ flagstest_o_ttext_1: flagstest_debug.o gcctestdir/ld
 # PT_PHDR segment at file offset 0.  We just make sure that we can
 # build it without error.
 check_DATA += flagstest_o_ttext_2
+MOSTLYCLEANFILES += flagstest_o_ttext_2
 flagstest_o_ttext_2: flagstest_debug.o gcctestdir/ld
 	$(CXXLINK) -Bgcctestdir/ -o $@ $< -Wl,-Ttext,0x400010 -Wl,-Tdata,0x800010
 
@@ -1284,6 +1307,7 @@ justsyms_exec_SOURCES = justsyms_exec.c
 justsyms_exec_DEPENDENCIES = gcctestdir/ld justsyms_lib
 justsyms_exec_LDFLAGS = -Bgcctestdir/ -Wl,-R,justsyms_lib
 justsyms_exec_LDADD =
+MOSTLYCLEANFILES += justsyms_lib
 justsyms_lib.o: justsyms_lib.c
 	$(COMPILE) -c -o $@ $<
 justsyms_lib: justsyms_lib.o gcctestdir/ld
@@ -1377,6 +1401,7 @@ script_test_8.stdout: script_test_8
 
 check_SCRIPTS += script_test_9.sh
 check_DATA += script_test_9.stdout
+MOSTLYCLEANFILES += script_test_9
 script_test_9.o: script_test_9.cc
 	$(CXXCOMPILE) -O0 -c -o $@ $<
 script_test_9: gcctestdir/ld $(srcdir)/script_test_9.t script_test_9.o
@@ -1570,6 +1595,7 @@ unused.c:
 
 check_SCRIPTS += plugin_final_layout.sh
 check_DATA += plugin_final_layout.stdout plugin_final_layout_readelf.stdout
+MOSTLYCLEANFILES += plugin_final_layout
 plugin_final_layout.o: plugin_final_layout.cc
 	$(CXXCOMPILE) -O0 -c -ffunction-sections  -fdata-sections -g -o $@ $<
 plugin_final_layout: plugin_final_layout.o plugin_section_order.so gcctestdir/ld
@@ -2001,6 +2027,7 @@ dyn_weak_ref.stdout: dyn_weak_ref_1.so
 
 # Test that --start-lib and --end-lib function correctly.
 check_PROGRAMS += start_lib_test
+MOSTLYCLEANFILES += libstart_lib_test.a
 start_lib_test: start_lib_test_main.o libstart_lib_test.a start_lib_test_2.o start_lib_test_3.o \
 	gcctestdir/ld
 	$(LINK) -Bgcctestdir/ -o $@ start_lib_test_main.o -L. -lstart_lib_test \
@@ -2183,6 +2210,7 @@ if NATIVE_OR_CROSS_LINKER
 # Test script section order.
 check_SCRIPTS += script_test_10.sh
 check_DATA += script_test_10.stdout
+MOSTLYCLEANFILES += script_test_10
 script_test_10.o: script_test_10.s
 	$(TEST_AS) -o $@ $<
 script_test_10: $(srcdir)/script_test_10.t script_test_10.o gcctestdir/ld
@@ -2795,6 +2823,7 @@ dwp_test_1b.dwo: dwp_test_1b.o
 dwp_test_2.dwo: dwp_test_2.o
 	$(TEST_OBJCOPY) --extract-dwo $< $@
 
+MOSTLYCLEANFILES += *.dwo *.dwp
 check_SCRIPTS += dwp_test_1.sh
 check_DATA += dwp_test_1.stdout
 dwp_test_1.stdout: dwp_test_1.dwp

@@ -1273,7 +1273,9 @@ print_insn_args (const char *d,
 	case 'U':
 	  {
 	    /* First check for both rd and rt being equal.  */
-	    unsigned int reg = GET_OP (l, RD);
+	    unsigned int reg;
+
+	    reg = GET_OP (l, RD);
 	    if (reg == GET_OP (l, RT))
 	      infprintf (is, "%s", mips_gpr_names[reg]);
 	    else
@@ -2938,6 +2940,9 @@ is_compressed_mode_p (struct disassemble_info *info)
       pos = info->symtab_pos + i;
 
       if (bfd_asymbol_flavour (info->symtab[pos]) != bfd_target_elf_flavour)
+	continue;
+
+      if (info->symtab[pos]->section != info->section)
 	continue;
 
       symbol = (elf_symbol_type *) info->symtab[pos];

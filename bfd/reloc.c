@@ -1,8 +1,5 @@
 /* BFD support for handling relocation entries.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011,
-   2012
-   Free Software Foundation, Inc.
+   Copyright 1990-2013 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -1735,6 +1732,13 @@ ENUMX
   BFD_RELOC_8_PLTOFF
 ENUMDOC
   For ELF.
+
+ENUM
+  BFD_RELOC_SIZE32
+ENUMX
+  BFD_RELOC_SIZE64
+ENUMDOC
+  Size relocations.
 
 ENUM
   BFD_RELOC_68K_GLOB_DAT
@@ -3910,87 +3914,87 @@ ENUM
   BFD_RELOC_V850_16_PCREL
 ENUMDOC
   This is a 16-bit reloc.
-ENUM     
+ENUM
   BFD_RELOC_V850_17_PCREL
 ENUMDOC
   This is a 17-bit reloc.
-ENUM     
+ENUM
   BFD_RELOC_V850_23
 ENUMDOC
   This is a 23-bit reloc.
-ENUM     
+ENUM
   BFD_RELOC_V850_32_PCREL
 ENUMDOC
   This is a 32-bit reloc.
-ENUM     
+ENUM
   BFD_RELOC_V850_32_ABS
 ENUMDOC
   This is a 32-bit reloc.
-ENUM     
+ENUM
   BFD_RELOC_V850_16_SPLIT_OFFSET
 ENUMDOC
   This is a 16-bit reloc.
-ENUM     
+ENUM
   BFD_RELOC_V850_16_S1
 ENUMDOC
   This is a 16-bit reloc.
-ENUM     
+ENUM
   BFD_RELOC_V850_LO16_S1
 ENUMDOC
   Low 16 bits. 16 bit shifted by 1.
-ENUM     
+ENUM
   BFD_RELOC_V850_CALLT_15_16_OFFSET
 ENUMDOC
   This is a 16 bit offset from the call table base pointer.
-ENUM     
+ENUM
   BFD_RELOC_V850_32_GOTPCREL
 ENUMDOC
   DSO relocations.
-ENUM     
+ENUM
   BFD_RELOC_V850_16_GOT
 ENUMDOC
   DSO relocations.
-ENUM     
+ENUM
   BFD_RELOC_V850_32_GOT
 ENUMDOC
   DSO relocations.
-ENUM     
+ENUM
   BFD_RELOC_V850_22_PLT_PCREL
 ENUMDOC
   DSO relocations.
-ENUM     
+ENUM
   BFD_RELOC_V850_32_PLT_PCREL
 ENUMDOC
   DSO relocations.
-ENUM     
+ENUM
   BFD_RELOC_V850_COPY
 ENUMDOC
   DSO relocations.
-ENUM     
+ENUM
   BFD_RELOC_V850_GLOB_DAT
 ENUMDOC
   DSO relocations.
-ENUM     
+ENUM
   BFD_RELOC_V850_JMP_SLOT
 ENUMDOC
   DSO relocations.
-ENUM     
+ENUM
   BFD_RELOC_V850_RELATIVE
 ENUMDOC
   DSO relocations.
-ENUM     
+ENUM
   BFD_RELOC_V850_16_GOTOFF
 ENUMDOC
   DSO relocations.
-ENUM     
+ENUM
   BFD_RELOC_V850_32_GOTOFF
 ENUMDOC
   DSO relocations.
-ENUM     
+ENUM
   BFD_RELOC_V850_CODE
 ENUMDOC
   start code.
-ENUM     
+ENUM
   BFD_RELOC_V850_DATA
 ENUMDOC
   start data in text.
@@ -4415,7 +4419,7 @@ ENUMDOC
 ENUM
   BFD_RELOC_AVR_LO8_LDI_GS
 ENUMDOC
-  This is a 16 bit reloc for the AVR that stores 8 bit value 
+  This is a 16 bit reloc for the AVR that stores 8 bit value
   (command address) into 8 bit immediate value of LDI insn. If the address
   is beyond the 128k boundary, the linker inserts a jump stub for this reloc
   in the lower 128k.
@@ -4553,6 +4557,8 @@ ENUMX
   BFD_RELOC_RL78_HI8
 ENUMX
   BFD_RELOC_RL78_LO16
+ENUMX
+  BFD_RELOC_RL78_CODE
 ENUMDOC
   Renesas RL78 Relocations.
 
@@ -4781,7 +4787,7 @@ ENUM
   BFD_RELOC_SCORE_GPREL15
 ENUMDOC
   Score relocations
-  Low 16 bit for load/store  
+  Low 16 bit for load/store
 ENUM
   BFD_RELOC_SCORE_DUMMY2
 ENUMX
@@ -4822,7 +4828,7 @@ ENUMX
   BFD_RELOC_SCORE_DUMMY_HI16
 ENUMDOC
   Undocumented Score relocs
-  
+
 ENUM
   BFD_RELOC_IP2K_FR9
 ENUMDOC
@@ -5575,6 +5581,8 @@ ENUMX
   BFD_RELOC_H8_DIR24R8
 ENUMX
   BFD_RELOC_H8_DIR32A16
+ENUMX
+  BFD_RELOC_H8_DISP32A16
 ENUMDOC
   H8 elf Relocations.
 
@@ -5656,6 +5664,77 @@ ENUMX
   BFD_RELOC_MSP430_RL_PCREL
 ENUMDOC
   msp430 specific relocation codes
+
+ENUM
+  BFD_RELOC_NIOS2_S16
+ENUMX
+  BFD_RELOC_NIOS2_U16
+ENUMX
+  BFD_RELOC_NIOS2_CALL26
+ENUMX
+  BFD_RELOC_NIOS2_IMM5
+ENUMX
+  BFD_RELOC_NIOS2_CACHE_OPX
+ENUMX
+  BFD_RELOC_NIOS2_IMM6
+ENUMX
+  BFD_RELOC_NIOS2_IMM8
+ENUMX
+  BFD_RELOC_NIOS2_HI16
+ENUMX
+  BFD_RELOC_NIOS2_LO16
+ENUMX
+  BFD_RELOC_NIOS2_HIADJ16
+ENUMX
+  BFD_RELOC_NIOS2_GPREL
+ENUMX 
+  BFD_RELOC_NIOS2_UJMP
+ENUMX
+  BFD_RELOC_NIOS2_CJMP
+ENUMX
+  BFD_RELOC_NIOS2_CALLR
+ENUMX
+  BFD_RELOC_NIOS2_ALIGN
+ENUMX
+  BFD_RELOC_NIOS2_GOT16
+ENUMX
+  BFD_RELOC_NIOS2_CALL16
+ENUMX
+  BFD_RELOC_NIOS2_GOTOFF_LO
+ENUMX
+  BFD_RELOC_NIOS2_GOTOFF_HA
+ENUMX
+  BFD_RELOC_NIOS2_PCREL_LO
+ENUMX
+  BFD_RELOC_NIOS2_PCREL_HA
+ENUMX
+  BFD_RELOC_NIOS2_TLS_GD16
+ENUMX
+  BFD_RELOC_NIOS2_TLS_LDM16
+ENUMX
+  BFD_RELOC_NIOS2_TLS_LDO16
+ENUMX
+  BFD_RELOC_NIOS2_TLS_IE16
+ENUMX
+  BFD_RELOC_NIOS2_TLS_LE16
+ENUMX
+  BFD_RELOC_NIOS2_TLS_DTPMOD
+ENUMX
+  BFD_RELOC_NIOS2_TLS_DTPREL
+ENUMX
+  BFD_RELOC_NIOS2_TLS_TPREL
+ENUMX
+  BFD_RELOC_NIOS2_COPY
+ENUMX
+  BFD_RELOC_NIOS2_GLOB_DAT
+ENUMX
+  BFD_RELOC_NIOS2_JUMP_SLOT
+ENUMX
+  BFD_RELOC_NIOS2_RELATIVE
+ENUMX
+  BFD_RELOC_NIOS2_GOTOFF
+ENUMDOC
+  Relocations used by the Altera Nios II core.
 
 ENUM
   BFD_RELOC_IQ2000_OFFSET_16
@@ -5898,63 +5977,63 @@ ENUMDOC
 ENUM
   BFD_RELOC_MICROBLAZE_32_LO
 ENUMDOC
-  This is a 32 bit reloc for the microblaze that stores the 
+  This is a 32 bit reloc for the microblaze that stores the
   low 16 bits of a value
 ENUM
   BFD_RELOC_MICROBLAZE_32_LO_PCREL
 ENUMDOC
-  This is a 32 bit pc-relative reloc for the microblaze that 
+  This is a 32 bit pc-relative reloc for the microblaze that
   stores the low 16 bits of a value
 ENUM
   BFD_RELOC_MICROBLAZE_32_ROSDA
 ENUMDOC
-  This is a 32 bit reloc for the microblaze that stores a 
+  This is a 32 bit reloc for the microblaze that stores a
   value relative to the read-only small data area anchor
 ENUM
   BFD_RELOC_MICROBLAZE_32_RWSDA
 ENUMDOC
-  This is a 32 bit reloc for the microblaze that stores a 
+  This is a 32 bit reloc for the microblaze that stores a
   value relative to the read-write small data area anchor
 ENUM
   BFD_RELOC_MICROBLAZE_32_SYM_OP_SYM
 ENUMDOC
-  This is a 32 bit reloc for the microblaze to handle 
+  This is a 32 bit reloc for the microblaze to handle
   expressions of the form "Symbol Op Symbol"
 ENUM
   BFD_RELOC_MICROBLAZE_64_NONE
 ENUMDOC
-  This is a 64 bit reloc that stores the 32 bit pc relative 
-  value in two words (with an imm instruction).  No relocation is 
+  This is a 64 bit reloc that stores the 32 bit pc relative
+  value in two words (with an imm instruction).  No relocation is
   done here - only used for relaxing
 ENUM
   BFD_RELOC_MICROBLAZE_64_GOTPC
 ENUMDOC
-  This is a 64 bit reloc that stores the 32 bit pc relative 
+  This is a 64 bit reloc that stores the 32 bit pc relative
   value in two words (with an imm instruction).  The relocation is
   PC-relative GOT offset
 ENUM
   BFD_RELOC_MICROBLAZE_64_GOT
 ENUMDOC
-  This is a 64 bit reloc that stores the 32 bit pc relative 
+  This is a 64 bit reloc that stores the 32 bit pc relative
   value in two words (with an imm instruction).  The relocation is
   GOT offset
 ENUM
   BFD_RELOC_MICROBLAZE_64_PLT
 ENUMDOC
-  This is a 64 bit reloc that stores the 32 bit pc relative 
+  This is a 64 bit reloc that stores the 32 bit pc relative
   value in two words (with an imm instruction).  The relocation is
   PC-relative offset into PLT
 ENUM
   BFD_RELOC_MICROBLAZE_64_GOTOFF
 ENUMDOC
-  This is a 64 bit reloc that stores the 32 bit GOT relative 
+  This is a 64 bit reloc that stores the 32 bit GOT relative
   value in two words (with an imm instruction).  The relocation is
   relative offset from _GLOBAL_OFFSET_TABLE_
 ENUM
   BFD_RELOC_MICROBLAZE_32_GOTOFF
 ENUMDOC
-  This is a 32 bit reloc that stores the 32 bit GOT relative 
-  value in a word.  The relocation is relative offset from 
+  This is a 32 bit reloc that stores the 32 bit GOT relative
+  value in a word.  The relocation is relative offset from
   _GLOBAL_OFFSET_TABLE_
 ENUM
   BFD_RELOC_MICROBLAZE_COPY

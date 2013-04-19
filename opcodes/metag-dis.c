@@ -33,7 +33,7 @@
 
 #define OPERAND_WIDTH   92
 #define ADDR_WIDTH      20
-#define REG_WIDTH       50
+#define REG_WIDTH       64
 #define DSP_PREFIX_WIDTH 17
 
 /* Value to print if we fail to parse a register name.  */
@@ -3360,6 +3360,7 @@ print_insn_metag (bfd_vma pc, disassemble_info *outf)
   bfd_byte buf[4];
   unsigned int insn_word;
   size_t i;
+  outf->bytes_per_chunk = 4;
 
   (*outf->read_memory_func) (pc & ~0x03, buf, 4, outf);
   insn_word = bfd_getl32 (buf);

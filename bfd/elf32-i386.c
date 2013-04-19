@@ -133,7 +133,9 @@ static reloc_howto_type elf_howto_table[]=
   HOWTO(R_386_TLS_TPOFF32, 0, 2, 32, FALSE, 0, complain_overflow_bitfield,
 	bfd_elf_generic_reloc, "R_386_TLS_TPOFF32",
 	TRUE, 0xffffffff, 0xffffffff, FALSE),
-  EMPTY_HOWTO (38),
+  HOWTO(R_386_SIZE32, 0, 2, 32, FALSE, 0, complain_overflow_unsigned,
+	bfd_elf_generic_reloc, "R_386_SIZE32",
+	TRUE, 0xffffffff, 0xffffffff, FALSE),
   HOWTO(R_386_TLS_GOTDESC, 0, 2, 32, FALSE, 0, complain_overflow_bitfield,
 	bfd_elf_generic_reloc, "R_386_TLS_GOTDESC",
 	TRUE, 0xffffffff, 0xffffffff, FALSE),
@@ -312,6 +314,10 @@ elf_i386_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
       TRACE ("BFD_RELOC_386_TLS_TPOFF32");
       return &elf_howto_table[R_386_TLS_TPOFF32 - R_386_tls_offset];
 
+    case BFD_RELOC_SIZE32:
+      TRACE ("BFD_RELOC_SIZE32");
+      return &elf_howto_table[R_386_SIZE32 - R_386_tls_offset];
+
     case BFD_RELOC_386_TLS_GOTDESC:
       TRACE ("BFD_RELOC_386_TLS_GOTDESC");
       return &elf_howto_table[R_386_TLS_GOTDESC - R_386_tls_offset];
@@ -419,10 +425,10 @@ elf_i386_grok_prstatus (bfd *abfd, Elf_Internal_Note *note)
  	return FALSE;
 
       /* pr_cursig */
-      elf_tdata (abfd)->core_signal = bfd_get_32 (abfd, note->descdata + 20);
+      elf_tdata (abfd)->core->signal = bfd_get_32 (abfd, note->descdata + 20);
 
       /* pr_pid */
-      elf_tdata (abfd)->core_lwpid = bfd_get_32 (abfd, note->descdata + 24);
+      elf_tdata (abfd)->core->lwpid = bfd_get_32 (abfd, note->descdata + 24);
 
       /* pr_reg */
       offset = 28;
@@ -437,10 +443,10 @@ elf_i386_grok_prstatus (bfd *abfd, Elf_Internal_Note *note)
 
 	case 144:		/* Linux/i386 */
 	  /* pr_cursig */
-	  elf_tdata (abfd)->core_signal = bfd_get_16 (abfd, note->descdata + 12);
+	  elf_tdata (abfd)->core->signal = bfd_get_16 (abfd, note->descdata + 12);
 
 	  /* pr_pid */
-	  elf_tdata (abfd)->core_lwpid = bfd_get_32 (abfd, note->descdata + 24);
+	  elf_tdata (abfd)->core->lwpid = bfd_get_32 (abfd, note->descdata + 24);
 
 	  /* pr_reg */
 	  offset = 72;
@@ -465,9 +471,9 @@ elf_i386_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
       if (pr_version != 1)
 	return FALSE;
 
-      elf_tdata (abfd)->core_program
+      elf_tdata (abfd)->core->program
 	= _bfd_elfcore_strndup (abfd, note->descdata + 8, 17);
-      elf_tdata (abfd)->core_command
+      elf_tdata (abfd)->core->command
 	= _bfd_elfcore_strndup (abfd, note->descdata + 25, 81);
     }
   else
@@ -478,11 +484,11 @@ elf_i386_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 	  return FALSE;
 
 	case 124:		/* Linux/i386 elf_prpsinfo.  */
-	  elf_tdata (abfd)->core_pid
+	  elf_tdata (abfd)->core->pid
 	    = bfd_get_32 (abfd, note->descdata + 12);
-	  elf_tdata (abfd)->core_program
+	  elf_tdata (abfd)->core->program
 	    = _bfd_elfcore_strndup (abfd, note->descdata + 28, 16);
-	  elf_tdata (abfd)->core_command
+	  elf_tdata (abfd)->core->command
 	    = _bfd_elfcore_strndup (abfd, note->descdata + 44, 80);
 	}
     }
@@ -491,7 +497,7 @@ elf_i386_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
      onto the end of the args in some (at least one anyway)
      implementations, so strip it off if it exists.  */
   {
-    char *command = elf_tdata (abfd)->core_command;
+    char *command = elf_tdata (abfd)->core->command;
     int n = strlen (command);
 
     if (0 < n && command[n - 1] == ' ')
@@ -931,7 +937,7 @@ elf_i386_link_hash_table_create (bfd *abfd)
   struct elf_i386_link_hash_table *ret;
   bfd_size_type amt = sizeof (struct elf_i386_link_hash_table);
 
-  ret = (struct elf_i386_link_hash_table *) bfd_malloc (amt);
+  ret = (struct elf_i386_link_hash_table *) bfd_zmalloc (amt);
   if (ret == NULL)
     return NULL;
 
@@ -943,18 +949,6 @@ elf_i386_link_hash_table_create (bfd *abfd)
       free (ret);
       return NULL;
     }
-
-  ret->sdynbss = NULL;
-  ret->srelbss = NULL;
-  ret->plt_eh_frame = NULL;
-  ret->tls_ldm_got.refcount = 0;
-  ret->next_tls_desc_index = 0;
-  ret->sgotplt_jump_table_size = 0;
-  ret->sym_cache.abfd = NULL;
-  ret->srelplt2 = NULL;
-  ret->tls_module_base = NULL;
-  ret->next_jump_slot_index = 0;
-  ret->next_irelative_index = 0;
 
   ret->loc_hash_table = htab_try_create (1024,
 					 elf_i386_local_htab_hash,
@@ -982,7 +976,7 @@ elf_i386_link_hash_table_free (struct bfd_link_hash_table *hash)
     htab_delete (htab->loc_hash_table);
   if (htab->loc_hash_memory)
     objalloc_free ((struct objalloc *) htab->loc_hash_memory);
-  _bfd_generic_link_hash_table_free (hash);
+  _bfd_elf_link_hash_table_free (hash);
 }
 
 /* Create .plt, .rel.plt, .got, .got.plt, .rel.got, .dynbss, and
@@ -1448,6 +1442,7 @@ elf_i386_check_relocs (bfd *abfd,
       struct elf_link_hash_entry *h;
       Elf_Internal_Sym *isym;
       const char *name;
+      bfd_boolean size_reloc;
 
       r_symndx = ELF32_R_SYM (rel->r_info);
       r_type = ELF32_R_TYPE (rel->r_info);
@@ -1550,6 +1545,10 @@ elf_i386_check_relocs (bfd *abfd,
 	  h->plt.refcount += 1;
 	  break;
 
+	case R_386_SIZE32:
+	  size_reloc = TRUE;
+	  goto do_size;
+
 	case R_386_TLS_IE_32:
 	case R_386_TLS_IE:
 	case R_386_TLS_GOTIE:
@@ -1642,6 +1641,7 @@ elf_i386_check_relocs (bfd *abfd,
 		      (_("%B: `%s' accessed both as normal and "
 			 "thread local symbol"),
 		       abfd, name);
+		    bfd_set_error (bfd_error_bad_value);
 		    return FALSE;
 		  }
 	      }
@@ -1696,6 +1696,8 @@ elf_i386_check_relocs (bfd *abfd,
 		h->pointer_equality_needed = 1;
 	    }
 
+	  size_reloc = FALSE;
+do_size:
 	  /* If we are creating a shared library, and this is a reloc
 	     against a global symbol, or a non PC relative reloc
 	     against a local symbol, then we need to copy the reloc
@@ -1792,7 +1794,8 @@ elf_i386_check_relocs (bfd *abfd,
 		}
 
 	      p->count += 1;
-	      if (r_type == R_386_PC32)
+	      /* Count size relocation as PC-relative relocation.  */
+	      if (r_type == R_386_PC32 || size_reloc)
 		p->pc_count += 1;
 	    }
 	  break;
@@ -1958,6 +1961,7 @@ elf_i386_gc_sweep_hook (bfd *abfd,
 
 	case R_386_32:
 	case R_386_PC32:
+	case R_386_SIZE32:
 	  if (info->shared
 	      && (h == NULL || h->type != STT_GNU_IFUNC))
 	    break;
@@ -3184,6 +3188,7 @@ elf_i386_relocate_section (bfd *output_bfd,
       bfd_reloc_status_type r;
       unsigned int indx;
       int tls_type;
+      bfd_vma st_size;
 
       r_type = ELF32_R_TYPE (rel->r_info);
       if (r_type == R_386_GNU_VTINHERIT
@@ -3216,6 +3221,7 @@ elf_i386_relocate_section (bfd *output_bfd,
 	  relocation = (sec->output_section->vma
 			+ sec->output_offset
 			+ sym->st_value);
+	  st_size = sym->st_size;
 
 	  if (ELF_ST_TYPE (sym->st_info) == STT_SECTION
 	      && ((sec->flags & SEC_MERGE) != 0
@@ -3308,6 +3314,7 @@ elf_i386_relocate_section (bfd *output_bfd,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
 				   unresolved_reloc, warned);
+	  st_size = h->size;
 	}
 
       if (sec != NULL && discarded_section (sec))
@@ -3669,6 +3676,11 @@ elf_i386_relocate_section (bfd *output_bfd,
 	  unresolved_reloc = FALSE;
 	  break;
 
+	case R_386_SIZE32:
+	  /* Set to symbol size.  */
+	  relocation = st_size;
+	  /* Fall through.  */
+
 	case R_386_32:
 	case R_386_PC32:
 	  if ((input_section->flags & SEC_ALLOC) == 0
@@ -3679,7 +3691,7 @@ elf_i386_relocate_section (bfd *output_bfd,
 	       && (h == NULL
 		   || ELF_ST_VISIBILITY (h->other) == STV_DEFAULT
 		   || h->root.type != bfd_link_hash_undefweak)
-	       && (r_type != R_386_PC32
+	       && ((r_type != R_386_PC32 && r_type != R_386_SIZE32)
 		   || !SYMBOL_CALLS_LOCAL (info, h)))
 	      || (ELIMINATE_COPY_RELOCS
 		  && !info->shared
@@ -4706,7 +4718,9 @@ elf_i386_finish_local_dynamic_symbol (void **slot, void *inf)
    dynamic linker, before writing them out.  */
 
 static enum elf_reloc_type_class
-elf_i386_reloc_type_class (const Elf_Internal_Rela *rela)
+elf_i386_reloc_type_class (const struct bfd_link_info *info ATTRIBUTE_UNUSED,
+			   const asection *rel_sec ATTRIBUTE_UNUSED,
+			   const Elf_Internal_Rela *rela)
 {
   switch (ELF32_R_TYPE (rela->r_info))
     {

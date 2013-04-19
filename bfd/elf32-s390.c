@@ -362,7 +362,7 @@ s390_elf_ldisp_reloc (bfd *abfd ATTRIBUTE_UNUSED,
   reloc_howto_type *howto = reloc_entry->howto;
   bfd_vma relocation;
   bfd_vma insn;
-  
+
   if (output_bfd != (bfd *) NULL
       && (symbol->flags & BSF_SECTION_SYM) == 0
       && (! howto->partial_inplace
@@ -371,13 +371,13 @@ s390_elf_ldisp_reloc (bfd *abfd ATTRIBUTE_UNUSED,
       reloc_entry->address += input_section->output_offset;
       return bfd_reloc_ok;
     }
-  
+
   if (output_bfd != NULL)
     return bfd_reloc_continue;
-  
+
   if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
     return bfd_reloc_outofrange;
-  
+
   relocation = (symbol->value
 		+ symbol->section->output_section->vma
 		+ symbol->section->output_offset);
@@ -388,11 +388,11 @@ s390_elf_ldisp_reloc (bfd *abfd ATTRIBUTE_UNUSED,
 		     + input_section->output_offset);
       relocation -= reloc_entry->address;
     }
-  
+
   insn = bfd_get_32 (abfd, (bfd_byte *) data + reloc_entry->address);
   insn |= (relocation & 0xfff) << 16 | (relocation & 0xff000) >> 4;
   bfd_put_32 (abfd, insn, (bfd_byte *) data + reloc_entry->address);
-  
+
   if ((bfd_signed_vma) relocation < - 0x80000
       || (bfd_signed_vma) relocation > 0x7ffff)
     return bfd_reloc_overflow;
@@ -786,7 +786,7 @@ elf_s390_link_hash_table_create (bfd *abfd)
   struct elf_s390_link_hash_table *ret;
   bfd_size_type amt = sizeof (struct elf_s390_link_hash_table);
 
-  ret = (struct elf_s390_link_hash_table *) bfd_malloc (amt);
+  ret = (struct elf_s390_link_hash_table *) bfd_zmalloc (amt);
   if (ret == NULL)
     return NULL;
 
@@ -797,16 +797,6 @@ elf_s390_link_hash_table_create (bfd *abfd)
       free (ret);
       return NULL;
     }
-
-  ret->elf.sgot = NULL;
-  ret->elf.sgotplt = NULL;
-  ret->elf.srelgot = NULL;
-  ret->elf.splt = NULL;
-  ret->elf.srelplt = NULL;
-  ret->sdynbss = NULL;
-  ret->srelbss = NULL;
-  ret->tls_ldm_got.refcount = 0;
-  ret->sym_cache.abfd = NULL;
 
   return &ret->elf.root;
 }
@@ -3722,7 +3712,9 @@ elf_s390_finish_dynamic_symbol (bfd *output_bfd,
    dynamic linker, before writing them out.  */
 
 static enum elf_reloc_type_class
-elf_s390_reloc_type_class (const Elf_Internal_Rela *rela)
+elf_s390_reloc_type_class (const struct bfd_link_info *info ATTRIBUTE_UNUSED,
+			   const asection *rel_sec ATTRIBUTE_UNUSED,
+			   const Elf_Internal_Rela *rela)
 {
   switch ((int) ELF32_R_TYPE (rela->r_info))
     {
@@ -3879,10 +3871,10 @@ elf_s390_grok_prstatus (bfd * abfd, Elf_Internal_Note * note)
 
       case 224:		/* S/390 Linux.  */
 	/* pr_cursig */
-	elf_tdata (abfd)->core_signal = bfd_get_16 (abfd, note->descdata + 12);
+	elf_tdata (abfd)->core->signal = bfd_get_16 (abfd, note->descdata + 12);
 
 	/* pr_pid */
-	elf_tdata (abfd)->core_lwpid = bfd_get_32 (abfd, note->descdata + 24);
+	elf_tdata (abfd)->core->lwpid = bfd_get_32 (abfd, note->descdata + 24);
 
 	/* pr_reg */
 	offset = 72;
@@ -3950,7 +3942,6 @@ elf32_s390_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 #define elf_backend_relocate_section	      elf_s390_relocate_section
 #define elf_backend_size_dynamic_sections     elf_s390_size_dynamic_sections
 #define elf_backend_init_index_section	      _bfd_elf_init_1_index_section
-#define elf_backend_reloc_type_class	      elf_s390_reloc_type_class
 #define elf_backend_grok_prstatus	      elf_s390_grok_prstatus
 #define elf_backend_plt_sym_val		      elf_s390_plt_sym_val
 #define elf_backend_add_symbol_hook           elf_s390_add_symbol_hook

@@ -712,6 +712,10 @@ extern bfd_boolean _bfd_write_merged_section
 extern bfd_vma _bfd_merged_section_offset
   (bfd *, asection **, void *, bfd_vma);
 
+/* Tidy up when done.  */
+
+extern void _bfd_merge_sections_free (void *);
+
 /* Create a string table.  */
 extern struct bfd_strtab_hash *_bfd_stringtab_init
   (void);
@@ -871,7 +875,7 @@ struct bfd_iovec
   /* For the following, on successful completion a value of 0 is returned.
      Otherwise, a value of -1 is returned (and  <<bfd_error>> is set).  */
   int (*bseek) (struct bfd *abfd, file_ptr offset, int whence);
-  bfd_boolean (*bclose) (struct bfd *abfd);
+  int (*bclose) (struct bfd *abfd);
   int (*bflush) (struct bfd *abfd);
   int (*bstat) (struct bfd *abfd, struct stat *sb);
   /* Mmap a part of the files. ADDR, LEN, PROT, FLAGS and OFFSET are the usual
@@ -940,6 +944,8 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_HI16_PLTOFF",
   "BFD_RELOC_HI16_S_PLTOFF",
   "BFD_RELOC_8_PLTOFF",
+  "BFD_RELOC_SIZE32",
+  "BFD_RELOC_SIZE64",
   "BFD_RELOC_68K_GLOB_DAT",
   "BFD_RELOC_68K_JMP_SLOT",
   "BFD_RELOC_68K_RELATIVE",
@@ -1964,6 +1970,7 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_RL78_HI16",
   "BFD_RELOC_RL78_HI8",
   "BFD_RELOC_RL78_LO16",
+  "BFD_RELOC_RL78_CODE",
   "BFD_RELOC_RX_NEG8",
   "BFD_RELOC_RX_NEG16",
   "BFD_RELOC_RX_NEG24",
@@ -2342,6 +2349,7 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_H8_DIR24A8",
   "BFD_RELOC_H8_DIR24R8",
   "BFD_RELOC_H8_DIR32A16",
+  "BFD_RELOC_H8_DISP32A16",
   "BFD_RELOC_XSTORMY16_REL_12",
   "BFD_RELOC_XSTORMY16_12",
   "BFD_RELOC_XSTORMY16_24",
@@ -2368,6 +2376,40 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_MSP430_16_BYTE",
   "BFD_RELOC_MSP430_2X_PCREL",
   "BFD_RELOC_MSP430_RL_PCREL",
+  "BFD_RELOC_NIOS2_S16",
+  "BFD_RELOC_NIOS2_U16",
+  "BFD_RELOC_NIOS2_CALL26",
+  "BFD_RELOC_NIOS2_IMM5",
+  "BFD_RELOC_NIOS2_CACHE_OPX",
+  "BFD_RELOC_NIOS2_IMM6",
+  "BFD_RELOC_NIOS2_IMM8",
+  "BFD_RELOC_NIOS2_HI16",
+  "BFD_RELOC_NIOS2_LO16",
+  "BFD_RELOC_NIOS2_HIADJ16",
+  "BFD_RELOC_NIOS2_GPREL",
+  "BFD_RELOC_NIOS2_UJMP",
+  "BFD_RELOC_NIOS2_CJMP",
+  "BFD_RELOC_NIOS2_CALLR",
+  "BFD_RELOC_NIOS2_ALIGN",
+  "BFD_RELOC_NIOS2_GOT16",
+  "BFD_RELOC_NIOS2_CALL16",
+  "BFD_RELOC_NIOS2_GOTOFF_LO",
+  "BFD_RELOC_NIOS2_GOTOFF_HA",
+  "BFD_RELOC_NIOS2_PCREL_LO",
+  "BFD_RELOC_NIOS2_PCREL_HA",
+  "BFD_RELOC_NIOS2_TLS_GD16",
+  "BFD_RELOC_NIOS2_TLS_LDM16",
+  "BFD_RELOC_NIOS2_TLS_LDO16",
+  "BFD_RELOC_NIOS2_TLS_IE16",
+  "BFD_RELOC_NIOS2_TLS_LE16",
+  "BFD_RELOC_NIOS2_TLS_DTPMOD",
+  "BFD_RELOC_NIOS2_TLS_DTPREL",
+  "BFD_RELOC_NIOS2_TLS_TPREL",
+  "BFD_RELOC_NIOS2_COPY",
+  "BFD_RELOC_NIOS2_GLOB_DAT",
+  "BFD_RELOC_NIOS2_JUMP_SLOT",
+  "BFD_RELOC_NIOS2_RELATIVE",
+  "BFD_RELOC_NIOS2_GOTOFF",
   "BFD_RELOC_IQ2000_OFFSET_16",
   "BFD_RELOC_IQ2000_OFFSET_21",
   "BFD_RELOC_IQ2000_UHI16",

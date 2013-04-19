@@ -206,6 +206,8 @@ static initializer cpu_flag_init[] =
     "CpuRdSeed" },
   { "CPU_PRFCHW_FLAGS",
     "CpuPRFCHW" },
+  { "CPU_SMAP_FLAGS",
+    "CpuSMAP" },
 };
 
 static initializer operand_type_init[] =
@@ -294,6 +296,8 @@ static initializer operand_type_init[] =
     "Imm16|Imm32S" },
   { "OPERAND_TYPE_IMM16_32_32S",
     "Imm16|Imm32|Imm32S" },
+  { "OPERAND_TYPE_IMM32_64",
+    "Imm32|Imm64" },
   { "OPERAND_TYPE_IMM32_32S_DISP32",
     "Imm32|Imm32S|Disp32" },
   { "OPERAND_TYPE_IMM64_DISP64",
@@ -377,6 +381,7 @@ static bitfield cpu_flags[] =
   BITFIELD (CpuRDSEED),
   BITFIELD (CpuADX),
   BITFIELD (CpuPRFCHW),
+  BITFIELD (CpuSMAP),
   BITFIELD (Cpu64),
   BITFIELD (CpuNo64),
 #ifdef CpuUnused

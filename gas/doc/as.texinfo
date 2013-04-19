@@ -431,6 +431,12 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
    [@b{--no-expand}] [@b{--no-merge-gregs}] [@b{-x}]
    [@b{--linker-allocated-gregs}]
 @end ifset
+@ifset NIOSII
+
+@emph{Target Nios II options:}
+   [@b{-relax-all}] [@b{-relax-section}] [@b{-no-relax}]
+   [@b{-EB}] [@b{-EL}]
+@end ifset
 @ifset PDP11
 
 @emph{Target PDP11 options:}
@@ -451,8 +457,8 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
     @b{-m440}|@b{-m464}|@b{-m476}|@b{-m7400}|@b{-m7410}|@b{-m7450}|@b{-m7455}|@b{-m750cl}|@b{-mppc64}|
     @b{-m620}|@b{-me500}|@b{-e500x2}|@b{-me500mc}|@b{-me500mc64}|@b{-me5500}|@b{-me6500}|@b{-mppc64bridge}|
     @b{-mbooke}|@b{-mpower4}|@b{-mpwr4}|@b{-mpower5}|@b{-mpwr5}|@b{-mpwr5x}|@b{-mpower6}|@b{-mpwr6}|
-    @b{-mpower7}|@b{-mpwr7}|@b{-ma2}|@b{-mcell}|@b{-mspe}|@b{-mtitan}|@b{-me300}|@b{-mvle}|@b{-mcom}]
-   [@b{-many}] [@b{-maltivec}|@b{-mvsx}]
+    @b{-mpower7}|@b{-mpwr7}|@b{-mpower8}|@b{-mpwr8}|@b{-ma2}|@b{-mcell}|@b{-mspe}|@b{-mtitan}|@b{-me300}|@b{-mcom}]
+   [@b{-many}] [@b{-maltivec}|@b{-mvsx}|@b{-mhtm}|@b{-mvle}]
    [@b{-mregnames}|@b{-mno-regnames}]
    [@b{-mrelocatable}|@b{-mrelocatable-lib}|@b{-K PIC}] [@b{-memb}]
    [@b{-mlittle}|@b{-mlittle-endian}|@b{-le}|@b{-mbig}|@b{-mbig-endian}|@b{-be}]
@@ -1026,6 +1032,24 @@ The target machine does (or does not) have a memory-management
 unit coprocessor.  The default is to assume an MMU for 68020 and up.
 
 @end table
+@end ifset
+
+@ifset NIOSII
+
+@ifclear man
+@xref{Nios II Options}, for the options available when @value{AS} is configured
+for an Altera Nios II processor.
+@end ifclear
+
+@ifset man
+@c man begin OPTIONS
+The following options are available when @value{AS} is configured for an
+Altera Nios II processor.
+@c man end
+@c man begin INCLUDE
+@include c-nios2.texi
+@c ended inside the included file
+@end ifset
 @end ifset
 
 @ifset PDP11
@@ -7059,6 +7083,9 @@ subject, see the hardware manufacturer's manual.
 @ifset MSP430
 * MSP430-Dependent::		MSP430 Dependent Features
 @end ifset
+@ifset NIOSII
+* NiosII-Dependent::            Altera Nios II Dependent Features
+@end ifset
 @ifset NS32K
 * NS32K-Dependent::		NS32K Dependent Features
 @end ifset
@@ -7268,6 +7295,10 @@ family.
 
 @ifset MSP430
 @include c-msp430.texi
+@end ifset
+
+@ifset NIOSII
+@include c-nios2.texi
 @end ifset
 
 @ifset NS32K

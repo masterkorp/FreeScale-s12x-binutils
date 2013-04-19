@@ -317,6 +317,10 @@ Layout::Relaxation_debug_check::verify_sections(
 void
 Layout_task_runner::run(Workqueue* workqueue, const Task* task)
 {
+  // See if any of the input definitions violate the One Definition Rule.
+  // TODO: if this is too slow, do this as a task, rather than inline.
+  this->symtab_->detect_odr_violations(task, this->options_.output_file_name());
+
   Layout* layout = this->layout_;
   off_t file_size = layout->finalize(this->input_objects_,
 				     this->symtab_,
@@ -1149,7 +1153,9 @@ Layout::layout(Sized_relobj_file<size, big_endian>* object, unsigned int shndx,
 
   // By default the GNU linker sorts some special text sections ahead
   // of others.  We are compatible.
-  if (!this->script_options_->saw_sections_clause()
+  if (parameters->options().text_reorder()
+      && !this->script_options_->saw_sections_clause()
+      && !this->is_section_ordering_specified()
       && !parameters->options().relocatable()
       && Layout::special_ordering_of_input_section(name) >= 0)
     os->set_must_sort_attached_input_sections();
@@ -1645,7 +1651,9 @@ Layout::make_output_section(const char* name, elfcpp::Elf_Word type,
   // sections before other .text sections.  We are compatible.  We
   // need to know that this might happen before we attach any input
   // sections.
-  if (!this->script_options_->saw_sections_clause()
+  if (parameters->options().text_reorder()
+      && !this->script_options_->saw_sections_clause()
+      && !this->is_section_ordering_specified()
       && !parameters->options().relocatable()
       && strcmp(name, ".text") == 0)
     os->set_may_sort_attached_input_sections();
@@ -3345,7 +3353,8 @@ Layout::set_segment_offsets(const Target* target, Output_segment* load_seg,
 	      addr = (*p)->paddr();
 	    }
 	  else if (parameters->options().user_set_Ttext()
-		   && ((*p)->flags() & elfcpp::PF_W) == 0)
+		   && (parameters->options().omagic()
+		       || ((*p)->flags() & elfcpp::PF_W) == 0))
 	    {
 	      are_addresses_set = true;
 	    }
@@ -4150,7 +4159,7 @@ Layout::create_dynamic_symtab(const Input_objects* input_objects,
 						       false,
 						       ORDER_DYNAMIC_LINKER,
 						       false);
-
+  *pdynstr = dynstr;
   if (dynstr != NULL)
     {
       Output_section_data* strdata = new Output_data_strtab(&this->dynpool_);
@@ -4166,8 +4175,6 @@ Layout::create_dynamic_symtab(const Input_objects* input_objects,
 	  odyn->add_section_address(elfcpp::DT_STRTAB, dynstr);
 	  odyn->add_section_size(elfcpp::DT_STRSZ, dynstr);
 	}
-
-      *pdynstr = dynstr;
     }
 
   // Create the hash tables.
@@ -4645,8 +4652,9 @@ Layout::finish_dynamic_section(const Input_objects* input_objects,
 	    }
 	}
 
-      odyn->add_string(elfcpp::DT_RPATH, rpath_val);
-      if (parameters->options().enable_new_dtags())
+      if (!parameters->options().enable_new_dtags())
+	odyn->add_string(elfcpp::DT_RPATH, rpath_val);
+      else
 	odyn->add_string(elfcpp::DT_RUNPATH, rpath_val);
     }
 

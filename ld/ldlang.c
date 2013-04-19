@@ -387,7 +387,7 @@ get_init_priority (const char *name)
 	decimal numerical value of the init_priority attribute.
 	The order of execution in .init_array is forward and
 	.fini_array is backward.
-     2: .ctors.NNNN/.ctors.NNNN: Where NNNN is 65535 minus the
+     2: .ctors.NNNN/.dtors.NNNN: Where NNNN is 65535 minus the
 	decimal numerical value of the init_priority attribute.
 	The order of execution in .ctors is backward and .dtors
 	is forward.
@@ -1240,6 +1240,8 @@ lang_init (void)
 void
 lang_finish (void)
 {
+  bfd_link_hash_table_free (link_info.output_bfd, link_info.hash);
+  bfd_hash_table_free (&lang_definedness_table);
   output_section_statement_table_free ();
 }
 
@@ -4961,6 +4963,13 @@ lang_size_sections_1
 	      {
 		bfd_vma lma = os->lma_region->current;
 
+		/* When LMA_REGION is the same as REGION, align the LMA
+		   as we did for the VMA, possibly including alignment
+		   from the bfd section.  If a different region, then
+		   only align according to the value in the output
+		   statement.  */
+		if (os->lma_region != os->region)
+		  section_alignment = os->section_alignment;
 		if (section_alignment > 0)
 		  lma = align_power (lma, section_alignment);
 		os->bfd_section->lma = lma;
@@ -5817,9 +5826,6 @@ lang_end (void)
 	    }
 	}
     }
-
-  /* Don't bfd_hash_table_free (&lang_definedness_table);
-     map file output may result in a call of lang_track_definedness.  */
 }
 
 /* This is a small function used when we want to ignore errors from

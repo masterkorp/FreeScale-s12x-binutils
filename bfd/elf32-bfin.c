@@ -1301,7 +1301,9 @@ bfin_check_relocs (bfd * abfd,
 }
 
 static enum elf_reloc_type_class
-elf32_bfin_reloc_type_class (const Elf_Internal_Rela * rela)
+elf32_bfin_reloc_type_class (const struct bfd_link_info *info ATTRIBUTE_UNUSED,
+			     const asection *rel_sec ATTRIBUTE_UNUSED,
+			     const Elf_Internal_Rela * rela)
 {
   switch ((int) ELF32_R_TYPE (rela->r_info))
     {
@@ -1821,7 +1823,7 @@ bfinfdpic_elf_link_hash_table_create (bfd *abfd)
   struct bfinfdpic_elf_link_hash_table *ret;
   bfd_size_type amt = sizeof (struct bfinfdpic_elf_link_hash_table);
 
-  ret = bfd_zalloc (abfd, amt);
+  ret = bfd_zmalloc (amt);
   if (ret == NULL)
     return NULL;
 
@@ -5088,7 +5090,7 @@ bfin_link_hash_table_create (bfd * abfd)
   struct bfin_link_hash_table *ret;
   bfd_size_type amt = sizeof (struct bfin_link_hash_table);
 
-  ret = bfd_zalloc (abfd, amt);
+  ret = bfd_zmalloc (amt);
   if (ret == NULL)
     return NULL;
 

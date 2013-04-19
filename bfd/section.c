@@ -532,12 +532,12 @@ CODE_FRAGMENT
 .} asection;
 .
 .{* Relax table contains information about instructions which can
-.   be removed by relaxation -- replacing a long address with a 
+.   be removed by relaxation -- replacing a long address with a
 .   short address.  *}
 .struct relax_table {
 .  {* Address where bytes may be deleted. *}
 .  bfd_vma addr;
-.  
+.
 .  {* Number of bytes to be deleted.  *}
 .  int size;
 .};
@@ -835,6 +835,7 @@ bfd_section_list_clear (bfd *abfd)
   abfd->section_count = 0;
   memset (abfd->section_htab.table, 0,
 	  abfd->section_htab.size * sizeof (struct bfd_hash_entry *));
+  abfd->section_htab.count = 0;
 }
 
 /*
@@ -1545,7 +1546,7 @@ bfd_get_section_contents (bfd *abfd,
 	  bfd_set_error (bfd_error_invalid_operation);
 	  return FALSE;
 	}
-      
+
       memmove (location, section->contents + offset, (size_t) count);
       return TRUE;
     }
